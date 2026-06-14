@@ -2,6 +2,13 @@
     <img width="100" height="100" src="/docs/img/image.png" />
     <h3>WasteNo - 别水了</h3>
     <p>反制网站各种行为的工具插件</p>
+
+![GitHub license](https://img.shields.io/badge/license-MIT-blue)
+![Chrome](https://img.shields.io/badge/Chrome-兼容-4285F4?logo=googlechrome)
+![Edge](https://img.shields.io/badge/Edge-兼容-0078D7?logo=microsoftedge)
+![JavaScript](https://img.shields.io/badge/JS-ES6+-yellow?logo=javascript)
+![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)
+![态度](https://img.shields.io/badge/态度-别水了-red)
 </div>
 
 ## 背景
