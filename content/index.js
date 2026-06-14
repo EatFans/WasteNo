@@ -1,276 +1,189 @@
-// 创建浮窗容器
-function createFloatingWidget() {
-  // 检查是否已经创建
-  if (document.getElementById('wasteno-widget')) {
-    return;
-  }
+// 默认设置
+let settings = {
+    antiCopyDisable: true,
+    antiPasteDisable: true,
+    antiSwitchDetect: true,
+    enableConsoleLog: false
+};
 
-  // 创建容器
-  const widget = document.createElement('div');
-  widget.id = 'wasteno-widget';
-  widget.className = 'wasteno-minimized';
-
-  // 最小化状态的按钮
-  const minimizedBtn = document.createElement('div');
-  minimizedBtn.className = 'wasteno-minimized-btn';
-  minimizedBtn.textContent = '💪';
-  minimizedBtn.title = 'Wasteno - 别水了';
-
-  // 展开状态的面板
-  const panel = document.createElement('div');
-  panel.className = 'wasteno-panel';
-
-  // 面板标题栏
-  const header = document.createElement('div');
-  header.className = 'wasteno-header';
-
-  const title = document.createElement('span');
-  title.className = 'wasteno-title';
-  title.textContent = 'Wasteno - 别水了';
-
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'wasteno-close-btn';
-  closeBtn.textContent = '×';
-  closeBtn.title = '最小化';
-
-  header.appendChild(title);
-  header.appendChild(closeBtn);
-
-  // 面板内容
-  const content = document.createElement('div');
-  content.className = 'wasteno-content';
-  content.innerHTML = '<p>保持专注，别浪费时间！</p>';
-
-  panel.appendChild(header);
-  panel.appendChild(content);
-
-  widget.appendChild(minimizedBtn);
-  widget.appendChild(panel);
-
-  document.body.appendChild(widget);
-
-  // 事件监听
-  minimizedBtn.addEventListener('click', () => {
-    widget.classList.remove('wasteno-minimized');
-    widget.classList.add('wasteno-expanded');
-  });
-
-  closeBtn.addEventListener('click', () => {
-    widget.classList.remove('wasteno-expanded');
-    widget.classList.add('wasteno-minimized');
-  });
-
-  // 使面板可拖动 - 优化版本
-  let isDragging = false;
-  let offsetX = 0;
-  let offsetY = 0;
-
-  const onMouseDown = (e) => {
-    if (e.target === closeBtn) return;
-
-    isDragging = true;
-
-    // 获取当前位置
-    const rect = widget.getBoundingClientRect();
-    offsetX = e.clientX - rect.left;
-    offsetY = e.clientY - rect.top;
-
-    // 移除过渡效果，使拖拽更流畅
-    widget.style.transition = 'none';
-
-    // 改变鼠标样式
-    header.style.cursor = 'grabbing';
-
-    e.preventDefault();
-  };
-
-  const onMouseMove = (e) => {
-    if (!isDragging) return;
-
-    e.preventDefault();
-
-    // 计算新位置
-    let newX = e.clientX - offsetX;
-    let newY = e.clientY - offsetY;
-
-    // 边界检测，防止拖出视口
-    const rect = widget.getBoundingClientRect();
-    const maxX = window.innerWidth - rect.width;
-    const maxY = window.innerHeight - rect.height;
-
-    newX = Math.max(0, Math.min(newX, maxX));
-    newY = Math.max(0, Math.min(newY, maxY));
-
-    // 使用 transform 而不是 left/top，性能更好
-    widget.style.transform = `translate(${newX}px, ${newY}px)`;
-    widget.style.left = '0';
-    widget.style.top = '0';
-    widget.style.right = 'auto';
-    widget.style.bottom = 'auto';
-  };
-
-  const onMouseUp = () => {
-    if (isDragging) {
-      isDragging = false;
-      // 恢复过渡效果
-      widget.style.transition = 'all 0.3s ease';
-      // 恢复鼠标样式
-      header.style.cursor = 'move';
+// 日志工具函数
+function log(...args) {
+    if (settings.enableConsoleLog) {
+        console.log('[Wasteno]', ...args);
     }
-  };
-
-  header.addEventListener('mousedown', onMouseDown);
-  document.addEventListener('mousemove', onMouseMove);
-  document.addEventListener('mouseup', onMouseUp);
-
-  // 防止拖拽时选中文本
-  header.addEventListener('selectstart', (e) => e.preventDefault());
 }
 
-// 创建样式
-function injectStyles() {
-  if (document.getElementById('wasteno-styles')) {
-    return;
-  }
+function logInfo(...args) {
+    if (settings.enableConsoleLog) {
+        console.info('[Wasteno]', ...args);
+    }
+}
 
-  const style = document.createElement('style');
-  style.id = 'wasteno-styles';
-  style.textContent = `
-    #wasteno-widget {
-      position: fixed;
-      z-index: 999999;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      transition: all 0.3s ease;
+function logWarn(...args) {
+    if (settings.enableConsoleLog) {
+        console.warn('[Wasteno]', ...args);
+    }
+}
+
+// 从 storage 加载设置
+chrome.storage.sync.get({
+    antiCopyDisable: true,
+    antiPasteDisable: true,
+    antiSwitchDetect: true,
+    enableConsoleLog: false
+}, (items) => {
+    settings = items;
+    log('设置已加载:', settings);
+    applySettings();
+});
+
+// 监听设置变化
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'SETTINGS_CHANGED') {
+        settings = message.settings;
+        log('设置已更新:', settings);
+        applySettings();
+    }
+});
+
+// 应用设置
+function applySettings() {
+    log('开始应用设置...');
+
+    // 反制禁用复制
+    if (settings.antiCopyDisable) {
+        log('启用反制禁用复制功能');
+        enableCopy();
+    } else {
+        log('反制禁用复制功能已关闭');
     }
 
-    /* 最小化状态 */
-    #wasteno-widget.wasteno-minimized {
-      right: 20px;
-      bottom: 20px;
-      width: 56px;
-      height: 56px;
+    // 反制禁止粘贴
+    if (settings.antiPasteDisable) {
+        log('启用反制禁止粘贴功能');
+        enablePaste();
+    } else {
+        log('反制禁止粘贴功能已关闭');
     }
 
-    #wasteno-widget.wasteno-minimized .wasteno-panel {
-      display: none;
+    // 反制切屏检查
+    if (settings.antiSwitchDetect) {
+        log('启用反制切屏检查功能');
+        disableSwitchDetection();
+    } else {
+        log('反制切屏检查功能已关闭');
     }
 
-    #wasteno-widget.wasteno-minimized .wasteno-minimized-btn {
-      display: flex;
-    }
+    logInfo('所有设置已应用完成');
+}
 
-    /* 展开状态 */
-    #wasteno-widget.wasteno-expanded {
-      right: 20px;
-      bottom: 20px;
-      width: 320px;
-      height: auto;
-    }
+// 允许复制
+function enableCopy() {
+    log('正在设置复制功能...');
 
-    #wasteno-widget.wasteno-expanded .wasteno-minimized-btn {
-      display: none;
-    }
+    // 移除复制相关的事件监听
+    document.addEventListener('copy', (e) => {
+        e.stopPropagation();
+        log('拦截并允许复制事件');
+    }, true);
 
-    #wasteno-widget.wasteno-expanded .wasteno-panel {
-      display: flex;
-    }
+    document.addEventListener('cut', (e) => {
+        e.stopPropagation();
+        log('拦截并允许剪切事件');
+    }, true);
 
-    /* 最小化按钮 */
-    .wasteno-minimized-btn {
-      width: 56px;
-      height: 56px;
-      background: #4A90E2;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 24px;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      transition: all 0.2s ease;
-      user-select: none;
-    }
+    // 移除选择文本的限制
+    document.addEventListener('selectstart', (e) => {
+        e.stopPropagation();
+    }, true);
 
-    .wasteno-minimized-btn:hover {
-      transform: scale(1.1);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-    }
+    document.addEventListener('contextmenu', (e) => {
+        e.stopPropagation();
+    }, true);
 
-    /* 面板 */
-    .wasteno-panel {
-      flex-direction: column;
-      background: #ffffff;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-      overflow: hidden;
-    }
+    // 移除 CSS 中的禁止选择样式
+    const style = document.createElement('style');
+    style.textContent = `
+        * {
+            -webkit-user-select: text !important;
+            -moz-user-select: text !important;
+            -ms-user-select: text !important;
+            user-select: text !important;
+        }
+    `;
+    document.head.appendChild(style);
+    log('已注入允许选择文本的样式');
+}
 
-    /* 标题栏 */
-    .wasteno-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 16px;
-      background: #4A90E2;
-      color: white;
-      cursor: grab;
-      user-select: none;
-    }
+// 允许粘贴
+function enablePaste() {
+    log('正在设置粘贴功能...');
 
-    .wasteno-header:active {
-      cursor: grabbing;
-    }
+    document.addEventListener('paste', (e) => {
+        e.stopPropagation();
+        log('拦截并允许粘贴事件');
+    }, true);
 
-    .wasteno-title {
-      font-size: 14px;
-      font-weight: 600;
-    }
+    // 监听输入框，移除粘贴限制
+    document.addEventListener('input', (e) => {
+        if (e.target.matches('input, textarea')) {
+            e.target.onpaste = null;
+        }
+    }, true);
 
-    .wasteno-close-btn {
-      width: 24px;
-      height: 24px;
-      border: none;
-      background: rgba(255, 255, 255, 0.2);
-      color: white;
-      border-radius: 4px;
-      font-size: 20px;
-      line-height: 1;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.2s ease;
-      padding: 0;
-    }
+    log('粘贴功能设置完成');
+}
 
-    .wasteno-close-btn:hover {
-      background: rgba(255, 255, 255, 0.3);
-    }
+// 禁用切屏检查
+function disableSwitchDetection() {
+    log('正在设置切屏检查反制...');
 
-    /* 内容区域 */
-    .wasteno-content {
-      padding: 16px;
-      min-height: 100px;
-      color: #333;
-    }
+    // 阻止 visibilitychange 事件
+    document.addEventListener('visibilitychange', (e) => {
+        e.stopImmediatePropagation();
+        log('已拦截 visibilitychange 事件');
+    }, true);
 
-    .wasteno-content p {
-      margin: 0;
-      font-size: 14px;
-      line-height: 1.6;
-    }
-  `;
+    // 阻止 blur 事件
+    window.addEventListener('blur', (e) => {
+        e.stopImmediatePropagation();
+        log('已拦截 blur 事件');
+    }, true);
 
-  document.head.appendChild(style);
+    // 阻止 focus 事件
+    window.addEventListener('focus', (e) => {
+        e.stopImmediatePropagation();
+    }, true);
+
+    // 阻止 pagehide 事件
+    window.addEventListener('pagehide', (e) => {
+        e.stopImmediatePropagation();
+        log('已拦截 pagehide 事件');
+    }, true);
+
+    // 阻止 pageshow 事件
+    window.addEventListener('pageshow', (e) => {
+        e.stopImmediatePropagation();
+    }, true);
+
+    // 覆盖 document.hidden 属性
+    Object.defineProperty(document, 'hidden', {
+        get: () => false,
+        configurable: true
+    });
+
+    // 覆盖 document.visibilityState 属性
+    Object.defineProperty(document, 'visibilityState', {
+        get: () => 'visible',
+        configurable: true
+    });
+
+    log('已覆盖 document.hidden 和 document.visibilityState');
+    log('切屏检查反制设置完成');
 }
 
 // 初始化
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    injectStyles();
-    createFloatingWidget();
-  });
-} else {
-  injectStyles();
-  createFloatingWidget();
-}
+applySettings();
+
+// 始终输出加载信息（不受日志开关控制）
+console.log('%c[Wasteno] 反制脚本已加载 ✓', 'color: #4A90E2; font-weight: bold;');

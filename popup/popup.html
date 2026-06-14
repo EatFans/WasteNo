@@ -127,6 +127,89 @@
         #result.show {
             display: block;
         }
+
+        /* Switch 开关样式 */
+        .settings-group {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #f5f7fa;
+            border-radius: 8px;
+            transition: background 0.2s ease;
+        }
+
+        .setting-item:hover {
+            background: #e8f0f8;
+        }
+
+        .setting-label {
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .setting-description {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 26px;
+            flex-shrink: 0;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .3s;
+            border-radius: 26px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #4A90E2;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+
+        .slider:hover {
+            opacity: 0.9;
+        }
     </style>
 </head>
 <body>
@@ -136,33 +219,65 @@
 
     <div class="content">
         <div class="section">
-            <div class="stats">
-                <div class="stat-card">
-                    <div class="stat-value">0</div>
-                    <div class="stat-label">今日专注</div>
+            <div class="section-title">反制设置</div>
+            <div class="settings-group">
+                <!-- 反制禁用复制 -->
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">反制禁用复制</div>
+                        <div class="setting-description">允许在禁止复制的网页上复制内容</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="antiCopyDisable" checked>
+                        <span class="slider"></span>
+                    </label>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value">0</div>
-                    <div class="stat-label">拦截次数</div>
+
+                <!-- 反制禁止粘贴 -->
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">反制禁止粘贴</div>
+                        <div class="setting-description">允许在禁止粘贴的网页上粘贴内容</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="antiPasteDisable" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <!-- 反制切屏检查 -->
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">反制切屏检查</div>
+                        <div class="setting-description">防止网页检测你切换窗口或标签</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="antiSwitchDetect" checked>
+                        <span class="slider"></span>
+                    </label>
                 </div>
             </div>
         </div>
 
         <div class="section">
-            <div class="section-title">快速操作</div>
-            <button id="btn" class="button">
-                获取当前页面标题
-            </button>
-            <div id="result"></div>
+            <div class="section-title">开发者选项</div>
+            <div class="settings-group">
+                <!-- 控制台日志 -->
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">控制台日志</div>
+                        <div class="setting-description">在控制台输出详细的调试信息</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="enableConsoleLog">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
         </div>
 
-        <div class="section">
-            <div class="message">
-                保持专注，别浪费时间！
-            </div>
-            <div class="tip">
-                💡 提示：点击扩展图标即可快速访问此面板
-            </div>
+        <div class="tip">
+            这些设置会实时生效，刷新页面后即可使用
         </div>
     </div>
 
