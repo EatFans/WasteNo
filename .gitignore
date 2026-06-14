@@ -10,3 +10,5 @@
 /httpRequests/
 
 .idea/
+
+.DS_Store
