@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简单测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-box {
+            border: 2px solid #333;
+            padding: 20px;
+            margin: 20px 0;
+            background: #f5f5f5;
+        }
+        .no-select {
+            user-select: none;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Wasteno 简单测试</h1>
+    
+    <div class="test-box">
+        <h2>测试 1: 禁止复制的文字</h2>
+        <p class="no-select" oncopy="return false">
+            这段文字禁止复制。尝试选择并复制它。
+        </p>
+    </div>
+
+    <div class="test-box">
+        <h2>测试 2: 禁止粘贴的输入框</h2>
+        <input type="text" placeholder="尝试粘贴" onpaste="return false">
+        <textarea placeholder="尝试粘贴" onpaste="return false" rows="3"></textarea>
+    </div>
+
+    <div class="test-box">
+        <h2>测试 3: 控制台</h2>
+        <p>打开控制台(F12)，查看事件日志</p>
+    </div>
+
+    <script>
+        // 尝试阻止复制
+        document.addEventListener('copy', function(e) {
+            console.log('📋 复制事件触发');
+            e.preventDefault(); // 尝试阻止复制
+            console.log('  → 网页尝试阻止复制 (preventDefault)');
+            console.log('  → 是否被阻止:', e.defaultPrevented);
+        }, true);
+
+        // 尝试阻止粘贴
+        document.addEventListener('paste', function(e) {
+            console.log('📝 粘贴事件触发');
+            e.preventDefault(); // 尝试阻止粘贴
+            console.log('  → 网页尝试阻止粘贴 (preventDefault)');
+            console.log('  → 是否被阻止:', e.defaultPrevented);
+        }, true);
+
+        // 监听切屏
+        let switchCount = 0;
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                switchCount++;
+                console.log('👁️ 页面被隐藏（切屏次数: ' + switchCount + '）');
+            } else {
+                console.log('👁️ 页面可见');
+            }
+        });
+
+        window.addEventListener('blur', function() {
+            console.log('👁️ 窗口失焦');
+        });
+
+        console.log('✅ 简单测试页面已加载');
+        console.log('💡 说明:');
+        console.log('  - 如果 Wasteno 启用，复制/粘贴应该正常工作');
+        console.log('  - 如果 Wasteno 关闭，复制/粘贴会被网页阻止');
+    </script>
+</body>
+</html>
+

@@ -36,6 +36,7 @@ chrome.storage.sync.get({
     enableConsoleLog: false
 }, (items) => {
     settings = items;
+    console.log('[Wasteno] 从 storage 加载的设置:', settings);
     log('设置已加载:', settings);
     applySettings(true); // 传入 true 表示是初始化
     isInitialLoad = false;
@@ -121,7 +122,9 @@ let copyHandlers = {
     copy: null,
     cut: null,
     selectstart: null,
-    contextmenu: null
+    contextmenu: null,
+    mousedown: null,
+    observer: null
 };
 let copyStyleElement = null;
 
@@ -132,31 +135,53 @@ function enableCopy() {
         disableCopy();
     }
 
-    // 移除复制相关的事件监听
+    // 拦截复制事件，确保复制能正常工作
     copyHandlers.copy = (e) => {
-        e.stopPropagation();
-        log('已拦截复制限制');
+        // 获取选中的文本
+        const selection = window.getSelection();
+        const selectedText = selection.toString();
+
+        if (selectedText) {
+            // 阻止其他监听器
+            e.stopImmediatePropagation();
+            e.preventDefault();
+
+            // 手动将文本写入剪贴板
+            if (e.clipboardData) {
+                e.clipboardData.setData('text/plain', selectedText);
+            }
+
+            log('已拦截复制限制 (手动复制: ' + selectedText.substring(0, 20) + '...)');
+        }
     };
     document.addEventListener('copy', copyHandlers.copy, true);
 
     copyHandlers.cut = (e) => {
-        e.stopPropagation();
+        e.stopImmediatePropagation();
         log('已拦截剪切限制');
     };
     document.addEventListener('cut', copyHandlers.cut, true);
 
-    // 移除选择文本的限制
+    // 拦截选择文本的限制
     copyHandlers.selectstart = (e) => {
-        e.stopPropagation();
+        e.stopImmediatePropagation();
     };
     document.addEventListener('selectstart', copyHandlers.selectstart, true);
 
     copyHandlers.contextmenu = (e) => {
-        e.stopPropagation();
+        e.stopImmediatePropagation();
     };
     document.addEventListener('contextmenu', copyHandlers.contextmenu, true);
 
-    // 移除 CSS 中的禁止选择样式
+    // 阻止网页禁用右键菜单
+    copyHandlers.mousedown = (e) => {
+        if (e.button === 2) { // 右键
+            e.stopImmediatePropagation();
+        }
+    };
+    document.addEventListener('mousedown', copyHandlers.mousedown, true);
+
+    // 添加 CSS 强制允许选择
     copyStyleElement = document.createElement('style');
     copyStyleElement.textContent = `
         * {
@@ -168,6 +193,28 @@ function enableCopy() {
     `;
     copyStyleElement.setAttribute('data-wasteno-copy', 'true');
     document.head.appendChild(copyStyleElement);
+
+    // 移除所有元素的 oncopy、onselectstart、oncontextmenu 属性
+    const removeAttributes = () => {
+        document.querySelectorAll('*').forEach(el => {
+            if (el.oncopy) el.oncopy = null;
+            if (el.onselectstart) el.onselectstart = null;
+            if (el.oncontextmenu) el.oncontextmenu = null;
+            el.removeAttribute('oncopy');
+            el.removeAttribute('onselectstart');
+            el.removeAttribute('oncontextmenu');
+        });
+    };
+
+    removeAttributes();
+
+    // 监听 DOM 变化
+    const observer = new MutationObserver(removeAttributes);
+    observer.observe(document.body || document.documentElement, {
+        childList: true,
+        subtree: true
+    });
+    copyHandlers.observer = observer;
 }
 
 // 禁用复制功能
@@ -176,6 +223,7 @@ function disableCopy() {
     if (copyHandlers.copy) {
         document.removeEventListener('copy', copyHandlers.copy, true);
         copyHandlers.copy = null;
+        log('已移除复制事件监听器');
     }
     if (copyHandlers.cut) {
         document.removeEventListener('cut', copyHandlers.cut, true);
@@ -189,18 +237,28 @@ function disableCopy() {
         document.removeEventListener('contextmenu', copyHandlers.contextmenu, true);
         copyHandlers.contextmenu = null;
     }
+    if (copyHandlers.mousedown) {
+        document.removeEventListener('mousedown', copyHandlers.mousedown, true);
+        copyHandlers.mousedown = null;
+    }
 
     // 移除样式
     if (copyStyleElement && copyStyleElement.parentNode) {
         copyStyleElement.parentNode.removeChild(copyStyleElement);
         copyStyleElement = null;
     }
+
+    // 断开观察器
+    if (copyHandlers.observer) {
+        copyHandlers.observer.disconnect();
+        copyHandlers.observer = null;
+    }
 }
 
 // 存储粘贴事件处理器
 let pasteHandlers = {
     paste: null,
-    input: null
+    keydown: null
 };
 
 // 允许粘贴
@@ -210,19 +268,66 @@ function enablePaste() {
         disablePaste();
     }
 
+    // 方案1: 拦截 paste 事件
     pasteHandlers.paste = (e) => {
-        e.stopPropagation();
-        log('已拦截粘贴限制');
+        e.stopImmediatePropagation(); // 阻止其他监听器
+
+        const target = e.target;
+        const clipboardData = e.clipboardData || window.clipboardData;
+
+        if (clipboardData && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+            const pastedText = clipboardData.getData('text/plain') || clipboardData.getData('text');
+
+            if (pastedText) {
+                // 阻止默认行为
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+                    // 对于输入框，插入文本到光标位置
+                    const start = target.selectionStart || 0;
+                    const end = target.selectionEnd || 0;
+                    const value = target.value || '';
+
+                    target.value = value.substring(0, start) + pastedText + value.substring(end);
+                    target.selectionStart = target.selectionEnd = start + pastedText.length;
+
+                    // 触发 input 事件，让网页知道内容变化了
+                    const inputEvent = new Event('input', { bubbles: true, cancelable: true });
+                    target.dispatchEvent(inputEvent);
+
+                    log('已拦截粘贴限制 (手动插入文本)');
+                } else if (target.isContentEditable) {
+                    // 对于可编辑元素，使用 execCommand
+                    document.execCommand('insertText', false, pastedText);
+                    log('已拦截粘贴限制 (contentEditable)');
+                }
+            }
+        }
     };
     document.addEventListener('paste', pasteHandlers.paste, true);
 
-    // 监听输入框，移除粘贴限制
-    pasteHandlers.input = (e) => {
-        if (e.target.matches('input, textarea')) {
-            e.target.onpaste = null;
-        }
+    // 方案2: 移除输入框上的 onpaste 属性
+    const removeOnPaste = () => {
+        document.querySelectorAll('input, textarea').forEach(el => {
+            if (el.onpaste) {
+                el.onpaste = null;
+            }
+            // 移除 onpaste 属性
+            el.removeAttribute('onpaste');
+        });
     };
-    document.addEventListener('input', pasteHandlers.input, true);
+
+    // 立即执行一次
+    removeOnPaste();
+
+    // 使用 MutationObserver 监听新添加的元素
+    const observer = new MutationObserver(removeOnPaste);
+    observer.observe(document.body || document.documentElement, {
+        childList: true,
+        subtree: true
+    });
+    pasteHandlers.observer = observer;
 }
 
 // 禁用粘贴功能
@@ -230,10 +335,11 @@ function disablePaste() {
     if (pasteHandlers.paste) {
         document.removeEventListener('paste', pasteHandlers.paste, true);
         pasteHandlers.paste = null;
+        log('已移除粘贴事件监听器');
     }
-    if (pasteHandlers.input) {
-        document.removeEventListener('input', pasteHandlers.input, true);
-        pasteHandlers.input = null;
+    if (pasteHandlers.observer) {
+        pasteHandlers.observer.disconnect();
+        pasteHandlers.observer = null;
     }
 }
 
